@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Usage:
-# ./mpnn2afserver.sh --dir fa_dir --max_job 10 [--fa extra.fa]
+# ./mpnn2afserver_fixed.sh --dir fa_dir --max_job 10 [--fa extra.fa]
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -24,45 +24,42 @@ done
 extra_seq=""
 if [[ -n "$EXTRA_FA" ]]; then
   seq=$(grep -v '^>' "$EXTRA_FA" | tr -d '\r\n')
-  extra_seq=$(cat <<EOF
+  extra_seq=$(cat <<EOF2
       {
         "proteinChain": {
           "sequence": "$seq",
           "count": 1
         }
       }
-EOF
+EOF2
 )
 fi
 
 batch=1
 total_job=0
 json="$DIR/batch_${batch}.json"
-echo "[" > "$json"
 first_in_batch=1
 
 close_batch () {
   echo "]" >> "$json"
 }
 
-open_new_batch () {
-  json="$DIR/batch_${batch}.json"
-  echo "[" > "$json"
-  first_in_batch=1
-}
-
 for fa in "$DIR"/*.fa; do
+  [[ -e "$fa" ]] || continue
   base=$(basename "$fa" .fa)
 
   while IFS=$'\t' read -r tag base job_id seq; do
     ((total_job++))
 
-    if [[ $first_in_batch -eq 0 ]]; then
+    # Open a new batch file only when we actually have content to write.
+    if [[ $first_in_batch -eq 1 ]]; then
+      echo "[" > "$json"
+    else
       echo "," >> "$json"
     fi
     first_in_batch=0
 
-    cat >> "$json" <<EOF
+    cat >> "$json" <<EOF2
   {
     "name": "${base}_job_${job_id}",
     "modelSeeds": [],
@@ -76,12 +73,13 @@ for fa in "$DIR"/*.fa; do
 $( [[ -n "$extra_seq" ]] && echo "$extra_seq" )
     ]
   }
-EOF
+EOF2
 
     if (( total_job % MAX_JOB == 0 )); then
       close_batch
       ((batch++))
-      open_new_batch
+      json="$DIR/batch_${batch}.json"
+      first_in_batch=1
     fi
 
   done < <(
@@ -99,7 +97,7 @@ EOF
     }
     function emit() {
       seq_count++
-      if (seq_count == 1) { seq=""; return }  # 첫 서열 skip
+      if (seq_count == 1) { seq=""; return }  # skip first sequence
       file_job++
       printf "JOB\t%s\t%d\t%s\n", base, file_job, seq
       seq=""
