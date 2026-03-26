@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Usage:
-# ./mpnn2afserver_fixed.sh --dir fa_dir --max_job 10 [--fa extra.fa]
+# ./mpnn2afserver.sh --dir fa_dir --max_job 10 [--fa extra.fa]
 
 while [[ $# -gt 0 ]]; do
   case $1 in
