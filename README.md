@@ -5,6 +5,7 @@
 ## Table of Contents
 - [af3filter](#af3filter)
 - [mpnn2afserver](#mpnn2afserver)
+- [pdb2af3server](#pdb2af3server)
 - [pdb2png](#pdb2png)
 - [af3db_rename](#af3db_rename)
   
@@ -96,6 +97,25 @@ Process ProteinMPNN fasta files into AFserver_input.json
 ./mpnn2afserver.sh --dir seqs/ --fa 1sy6.fa --max_job 100
 ```
 
+</br>
+
+# pdb2af3server
+Process pdb files into AFserver_input.json
+
+</br>
+
+**Usage:**
+
+```bash
+./pdb2af3server.sh --dir <pdb directory> --target <target protein pdb> --chain <chain id>
+```
+</br>
+
+**Example:**
+
+```bash
+./pdb2af3server.sh --dir seqs/ --target 1sy6.pdb --chain <chain id>
+```
 </br>
 
 # pdb2png
