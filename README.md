@@ -114,7 +114,7 @@ Process pdb files into AFserver_input.json
 **Example:**
 
 ```bash
-./pdb2af3server.sh --dir seqs/ --target 1sy6.pdb --chain <chain id>
+./pdb2af3server.sh --dir seqs/ --target 1sy6.pdb --chain A
 ```
 </br>
 
