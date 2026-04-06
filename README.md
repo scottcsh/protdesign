@@ -6,6 +6,7 @@
 - [af3filter](#af3filter)
 - [mpnn2afserver](#mpnn2afserver)
 - [pdb2af3server](#pdb2af3server)
+- [Run PISA interface](#Run-PISA-interface)
 - [pdb2png](#pdb2png)
 - [af3db_rename](#af3db_rename)
   
@@ -117,6 +118,26 @@ Process pdb files into AFserver_input.json
 ./pdb2af3server.sh --dir seqs/ --target 1sy6.pdb --chain A
 ```
 </br>
+
+# Run PISA interface
+Run PISA on pdb files
+
+</br>
+
+**Usage:**
+
+```bash
+python run_pisa_interface.py --dir <pdb directory>
+```
+</br>
+
+**Example:**
+
+```bash
+./pdb2af3server.sh --dir folder_with_pdbs/
+```
+</br>
+
 
 # pdb2png
 
