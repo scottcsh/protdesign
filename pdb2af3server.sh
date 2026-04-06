@@ -77,8 +77,6 @@ function aa3to1(res) {
 }
 '
 
-# Extract sequence for all chains in target PDB.
-# Output format: chain sequences joined by ":" in encountered chain order.
 pdb_to_seq_all_chains() {
     local pdb_file="$1"
     awk '
@@ -114,7 +112,6 @@ pdb_to_seq_all_chains() {
     }' "$pdb_file"
 }
 
-# Extract sequence for selected chain in candidate PDB.
 pdb_to_seq_chain() {
     local pdb_file="$1"
     local chain_id="$2"
@@ -174,15 +171,15 @@ for pdb in "$DIR"/*.pdb; do
     "modelSeeds": [],
     "sequences": [
       {
-        "protein": {
-          "id": "target",
-          "sequence": "$TARGET_SEQ"
+        "proteinChain": {
+          "sequence": "$TARGET_SEQ",
+          "count": 1
         }
       },
       {
-        "protein": {
-          "id": "binder",
-          "sequence": "$candidate_seq"
+        "proteinChain": {
+          "sequence": "$candidate_seq",
+          "count": 1
         }
       }
     ]
