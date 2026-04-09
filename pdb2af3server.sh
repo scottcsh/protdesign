@@ -5,9 +5,15 @@ set -euo pipefail
 DIR=""
 TARGET=""
 CHAIN=""
+RANGE=""
+COPY_COUNT=""
 
 usage() {
-    echo "Usage: ./pdb2af3server.sh --dir <pdb directory> --target <target protein pdb> --chain <chain id>"
+    echo "Usage: ./pdb2af3server.sh --dir <pdb directory> --target <target protein pdb> --chain <chain id> --range <residue range> --copy <count>"
+    echo
+    echo "Examples:"
+    echo "  ./pdb2af3server.sh --dir ./pdbs --target target.pdb --chain A --range 10-120 --copy 2"
+    echo "  ./pdb2af3server.sh --dir ./pdbs --target target.pdb --chain A --range 10-50,80-120,150 --copy 3"
     exit 1
 }
 
@@ -25,6 +31,14 @@ while [[ "$#" -gt 0 ]]; do
             CHAIN="${2:-}"
             shift 2
             ;;
+        --range)
+            RANGE="${2:-}"
+            shift 2
+            ;;
+        --copy)
+            COPY_COUNT="${2:-}"
+            shift 2
+            ;;
         *)
             echo "Unknown parameter passed: $1"
             usage
@@ -32,7 +46,7 @@ while [[ "$#" -gt 0 ]]; do
     esac
 done
 
-if [[ -z "$DIR" || -z "$TARGET" || -z "$CHAIN" ]]; then
+if [[ -z "$DIR" || -z "$TARGET" || -z "$CHAIN" || -z "$RANGE" || -z "$COPY_COUNT" ]]; then
     usage
 fi
 
@@ -48,6 +62,16 @@ fi
 
 if [[ ${#CHAIN} -ne 1 ]]; then
     echo "Error: --chain must be a single chain identifier."
+    exit 1
+fi
+
+if ! [[ "$COPY_COUNT" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Error: --copy must be a positive integer."
+    exit 1
+fi
+
+if ! [[ "$RANGE" =~ ^[0-9,[:space:]-]+$ ]]; then
+    echo "Error: --range must contain only digits, commas, hyphens, and spaces."
     exit 1
 fi
 
@@ -75,41 +99,74 @@ function aa3to1(res) {
     else if (res == "VAL") return "V"
     else return "X"
 }
+
+function trim(s) {
+    gsub(/^[ \t]+|[ \t]+$/, "", s)
+    return s
+}
+
+function build_allowed_ranges(range_spec,    i, n, token, bounds, start, end, tmp) {
+    n = split(range_spec, parts, ",")
+    for (i = 1; i <= n; i++) {
+        token = trim(parts[i])
+        if (token == "") continue
+
+        if (token ~ /^[0-9]+-[0-9]+$/) {
+            split(token, bounds, "-")
+            start = bounds[1] + 0
+            end = bounds[2] + 0
+            if (start > end) {
+                tmp = start
+                start = end
+                end = tmp
+            }
+            for (j = start; j <= end; j++) {
+                allowed[j] = 1
+            }
+        } else if (token ~ /^[0-9]+$/) {
+            allowed[token + 0] = 1
+        } else {
+            invalid_range = token
+            return 0
+        }
+    }
+    return 1
+}
 '
 
-pdb_to_seq_all_chains() {
+pdb_to_seq_chain_range() {
     local pdb_file="$1"
-    awk '
+    local chain_id="$2"
+    local range_spec="$3"
+    awk -v chain="$chain_id" -v range_spec="$range_spec" '
     '"$aa3to1_awk"'
+    BEGIN {
+        ok = build_allowed_ranges(range_spec)
+        if (!ok) {
+            printf("Error: invalid --range token: %s\n", invalid_range) > "/dev/stderr"
+            exit 2
+        }
+    }
     /^ATOM/ {
         atom_name = substr($0, 13, 4)
         gsub(/ /, "", atom_name)
-        if (atom_name != "CA") next
+        pdb_chain = substr($0, 22, 1)
+        if (atom_name != "CA" || pdb_chain != chain) next
 
-        chain = substr($0, 22, 1)
         resname = substr($0, 18, 3)
-        resseq = substr($0, 23, 4)
+        resseq_raw = substr($0, 23, 4)
         icode = substr($0, 27, 1)
-        resid = chain "_" resseq icode
+        resseq = trim(resseq_raw) + 0
+        resid = resseq "_" icode
+
+        if (!(resseq in allowed)) next
 
         if (!(resid in seen)) {
-            if (!(chain in chain_seen)) {
-                chain_order[++nchains] = chain
-                chain_seen[chain] = 1
-            }
-            seqs[chain] = seqs[chain] aa3to1(resname)
+            seq = seq aa3to1(resname)
             seen[resid] = 1
         }
     }
-    END {
-        out = ""
-        for (i = 1; i <= nchains; i++) {
-            c = chain_order[i]
-            if (i > 1) out = out ":"
-            out = out seqs[c]
-        }
-        print out
-    }' "$pdb_file"
+    END { print seq }' "$pdb_file"
 }
 
 pdb_to_seq_chain() {
@@ -137,10 +194,10 @@ pdb_to_seq_chain() {
 }
 
 TARGET_ABS="$(realpath "$TARGET")"
-TARGET_SEQ="$(pdb_to_seq_all_chains "$TARGET")"
+TARGET_SEQ="$(pdb_to_seq_chain_range "$TARGET" "$CHAIN" "$RANGE")"
 
 if [[ -z "$TARGET_SEQ" ]]; then
-    echo "Error: failed to extract sequence from target PDB: $TARGET"
+    echo "Error: failed to extract sequence from target PDB for chain '$CHAIN' and range '$RANGE': $TARGET"
     exit 1
 fi
 
@@ -164,7 +221,7 @@ for pdb in "$DIR"/*.pdb; do
     job_name="$(basename "$pdb" .pdb)"
     output_json="$output_dir/${job_name}.json"
 
-    cat > "$output_json" <<EOF
+    cat > "$output_json" <<EOF_JSON
 [
   {
     "name": "$job_name",
@@ -173,7 +230,7 @@ for pdb in "$DIR"/*.pdb; do
       {
         "proteinChain": {
           "sequence": "$TARGET_SEQ",
-          "count": 1
+          "count": $COPY_COUNT
         }
       },
       {
@@ -185,7 +242,7 @@ for pdb in "$DIR"/*.pdb; do
     ]
   }
 ]
-EOF
+EOF_JSON
 
     job_count=$((job_count + 1))
 done
@@ -196,6 +253,8 @@ if [[ $job_count -eq 0 ]]; then
 fi
 
 echo "AF3 JSON files generated in: $output_dir"
-echo "Target: all chains kept"
+echo "Target chain: $CHAIN"
+echo "Target residue range: $RANGE"
+echo "Target copy count: $COPY_COUNT"
 echo "Candidate chain: $CHAIN"
 echo "JSON files written: $job_count (1 per PDB)"
