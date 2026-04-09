@@ -108,14 +108,14 @@ Process pdb files into AFserver_input.json
 **Usage:**
 
 ```bash
-./pdb2af3server.sh --dir <pdb directory> --target <target protein pdb> --chain <chain id>
+./pdb2af3server.sh --dir <input directory> --target <target.pdb> --chain <chain ID> --range <residue range> --copy <num copies>
 ```
 </br>
 
 **Example:**
 
 ```bash
-./pdb2af3server.sh --dir seqs/ --target 1sy6.pdb --chain A
+./pdb2af3server.sh --dir ./pdbs --target target.pdb --chain A --range 10-120 --copy 2
 ```
 </br>
 
