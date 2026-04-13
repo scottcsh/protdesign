@@ -115,7 +115,7 @@ Process pdb files into AFserver_input.json
 **Example:**
 
 ```bash
-./pdb2af3server.sh --dir /pdbs --target target.pdb --target-chain A --candidate-chain B --range 10-120 --copy 2
+./pdb2af3server.sh --dir ./pdbs --target target.pdb --target-chain A --candidate-chain B --range 10-120 --copy 2
 ```
 </br>
 
@@ -134,7 +134,7 @@ python run_pisa_interface.py --dir <pdb directory>
 **Example:**
 
 ```bash
-./pdb2af3server.sh --dir folder_with_pdbs/
+python run_pisa_interface.py --dir ./pdbs
 ```
 </br>
 
